@@ -41,7 +41,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             return False
     
     def fetch(self,i):
-        print "fetch"
+        print "fetch: %d" % i
         if not self.isActive():
             return False
         if i < 0:

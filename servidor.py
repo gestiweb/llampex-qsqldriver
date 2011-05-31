@@ -49,7 +49,7 @@ class ModelLlampex(BaseHandler):
         
     def openDB(self):
         try:
-            self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=king.calidae.net port=5432")
+            self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=localhost port=5432")
             self.cur = self.conn.cursor()
             print "opened"
             return True
@@ -266,6 +266,6 @@ class ModelLlampex(BaseHandler):
 
 s = createserver(handler_factory=ModelLlampex, host="0.0.0.0") # creamos el servidor
 
-s.debug_socket(True) # imprimir las tramas enviadas y recibidas.
+#s.debug_socket(True) # imprimir las tramas enviadas y recibidas.
 
 s.serve() # empieza el bucle infinito de servicio.
