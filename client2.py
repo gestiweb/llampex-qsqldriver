@@ -16,16 +16,18 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         self.currentSize = 0
     
     def data(self,i):
-        print "data"
-        return self.sqldriver.getData(i,self.at())
+        ret = self.sqldriver.getData(i,self.at())
+        print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
+        return ret
+        
         #return Qvariant
     
     def isNull(self,index):
-        print "isNull"
-        pass #return bool
+        print "$$ -> LlampexResult.isNull(%d)" % (index)
+        return False
     
     def reset(self,query):
-        print query
+        print "$$ -> LlampexResult.reset(%s)" % (repr(query))
         if self.sqldriver.executeQuery(query):
             self.setActive(True)
             if str(query).strip().lower().startswith("select"):
@@ -37,12 +39,12 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             return True
         else:
             #TODO no imprime nada :S
-            print "Error: Unable to create query"
+            print "$$ Error: Unable to create query"
             self.setLastError(QtSql.QSqlError("QSqlLlampexDriver: QSqlLlampexResult", "Unable to create query", QtSql.QSqlError.StatementError))
             return False
     
     def fetch(self,i):
-        print "fetch"
+        print "$$ -> LlampexResult.fetch(%d)" % (i)
         if not self.isActive():
             return False
         if i < 0:
@@ -56,31 +58,33 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         return True
     
     def fetchFirst(self):
-        print "fetchFirst"
+        print "$$ -> LlampexResult.fetchFirst()"
         return self.fetch(0)
     
     def fetchLast(self):
-        print "fetchLast"
+        print "$$ -> LlampexResult.fetchLast()"
         return self.fetch(self.currentSize -1)
     
     def size(self):
-        print "size (returned "+str(self.currentSize)+")"
+        print "$$ -> LlampexResult.size() -> %d" % (self.currentSize)
         return self.currentSize
     
     def numRowsAffected(self):
-        print "numRowsAffected"
-        pass #return int
+        print "$$ -> LlampexResult.numRowsAffected()"
+        return 0
     
     def record(self):
-        print "record"
+        print "$$ -> LlampexResult.record() (crear QSqlRecord())"
         info = QtSql.QSqlRecord()
         if not self.isActive() or not self.isSelect():
             return info
-        
-        for i in range(self.currentSize):
-            f = QtSql.QSqlField(str(self.data(i)),QtCore.QVariant.String) #TODO arreglar TYPE
+         
+        for field in self.sqldriver.fields:
+            f = QtSql.QSqlField(field,QtCore.QVariant.String) #TODO arreglar TYPE
             info.append(f)
+            print "$$ -> field:", field
         
+        print "$$ <<< LlampexResult.record()"
         return info
     
 
@@ -117,36 +121,40 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
         #setattr(self,"open",self.open_)
         
     def hasFeature(self,f):
-        print "hasFeature: "+str(f)
-        return True
+        print "~~ hasFeature: "+str(f)
+        if f == 1: return True
+        return False
     
     def open(self,db,user,passwd,host,port,options):
-        print "open"
+        print "~~ open database"
         ok = self.c.call.openDB()
         self.setOpen(ok)
         self.setOpenError(not ok)
         return ok
         
     def close(self):
-        print "close"
+        print "~~ close"
         self.c.call.closeDB()
         self.setOpen(False)
         self.setOpenError(False)
     
     def createResult(self):
-        print "result"
+        print "~~ createResult"
         return QSqlLlampexResult(self)
         
     def executeQuery(self,query):
-        print "execute query"
-        return self.c.call.execute(unicode(query))
+        print "~~ execute query:", query
+        ret = self.c.call.execute(unicode(query))
+        self.fields = self.c.call.fields()
+        return ret
         
     def getCurrentSize(self):
-        print "current size (returned "+str(self.c.call.rowcount())+")"
+        size = self.c.call.rowcount()
+        print "~~ current size -> %d " % size
         return self.c.call.rowcount()
         
     def getCursorPosition(self):
-        print "getPosition"
+        print "~~ getPosition"
         return self.c.call.rownumber()
         
     #def setAt(self,i):
@@ -154,17 +162,19 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
     #    print self.c.call.scroll(i,'absolute')
         
     def fetchOne(self):
-        print "fetch one"
+        print "~~ fetch one"
         self.c.call.fetchOne()
         
     def getData(self, i, row):
-        print "getData:"+str(i)+" | "+str(row)
+        print "~~ getData:"+str(i)+" | "+str(row)
         self.c.call.scroll(row,'absolute')
         self.fetchOne()
         return self.c.call.getData(i)
     
 def initializeModel(model,db):
     model.setQuery('select * from users',db)
+    print "<< setQuery Initialize Model"
+    
     model.setHeaderData(0, QtCore.Qt.Horizontal, "ID")
     model.setHeaderData(1, QtCore.Qt.Horizontal, "Username")
     model.setHeaderData(2, QtCore.Qt.Horizontal, "Password")
@@ -187,15 +197,17 @@ if __name__ == '__main__':
     llampex_driver = QSqlLlampexDriver()
     print llampex_driver
     db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
-    print "Database:",db
+    print ">> Database:",db
     
     if not db.open():
         print "unable to open database"
         sys.exit(1)
-        
     plainModel = QtSql.QSqlQueryModel()
+    print ">> Initialize Model"
     initializeModel(plainModel,db)
+    print ">> Create View"
     createView("Plain Query Model", plainModel)
+    print ">> OK"
     
     #query = QtSql.QSqlQuery("select * from users",db)
     #query = QtSql.QSqlQuery("insert into users VALUES (7,'pepito','password','false','false')",db)

@@ -116,8 +116,8 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
         #setattr(self,"open",self.open_)
         
     def hasFeature(self,f):
-        print "hasFeature"
-        return True
+        print "hasFeature", f
+        return False
     
     def open(self,db,user,passwd,host,port,options):
         print "open"
