@@ -181,7 +181,9 @@ def initializeModel(model,db):
     model.setHeaderData(3, QtCore.Qt.Horizontal, "Active")
     model.setHeaderData(4, QtCore.Qt.Horizontal, "Admin")
     
+view = None
 def createView(title, model):
+    global view
     view = QtGui.QTableView()
     view.setModel(model)
     view.setWindowTitle(title)
@@ -216,7 +218,8 @@ if __name__ == '__main__':
     #    print "-----------------> "+query.value(1).toString()
     
     
-    
+    app.exec_()
+
     #db.close()
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
