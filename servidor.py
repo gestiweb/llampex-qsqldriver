@@ -40,16 +40,33 @@ def withrlock(function):
 
     lockfn.__name__ = function.__name__
     return lockfn
-        
-class ModelLlampex(BaseHandler):
-        
+
+class LlampexProject(BaseHandler):
+    
     def _setup(self):
+        self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=king.calidae.net port=5432")
+    
+    def getCursor(self):
+        return CursorSQL(self)
+        
+class CursorSQL(BaseHandler):
+        
+    #def _setup(self):
+    #    self.rlock = threading.RLock()
+    #    self.lastResult = ()
+        
+    globaldata = { 'cursornumber' : 1 }
+    def __init__(self, rpc):
+        BaseHandler.__init__(self,rpc)
+        self.conn = rpc.conn
+        cursornumber = self.globaldata['cursornumber']
+        self.globaldata['cursornumber'] += 1
+        self.curname = "rpccursor_%04x" % cursornumber
         self.rlock = threading.RLock()
         self.lastResult = ()
         
     def openDB(self):
         try:
-            self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=localhost port=5432")
             self.cur = self.conn.cursor()
             print "opened"
             return True
@@ -80,7 +97,15 @@ class ModelLlampex(BaseHandler):
         "Returns field list"
         descrip = self.cur.description
         if descrip is None: return None
-        fields = [l[0] for l in descrip]
+        print descrip
+        tmpCur = self.conn.cursor()
+        fields = []
+        #fields = [(l[0],l[1]) for l in descrip]
+        for l in descrip:
+            tmpCur.execute("SELECT typname FROM pg_type WHERE oid = "+str(l[1]))
+            type = tmpCur.fetchone()
+            fields.append((l[0],type[0]))
+        
         return fields
     
     @withrlock    
@@ -264,7 +289,7 @@ class ModelLlampex(BaseHandler):
         raise ServerError, "NotImplementedError"
 
 
-s = createserver(handler_factory=ModelLlampex, host="0.0.0.0") # creamos el servidor
+s = createserver(handler_factory=LlampexProject, host="0.0.0.0") # creamos el servidor
 
 #s.debug_socket(True) # imprimir las tramas enviadas y recibidas.
 
