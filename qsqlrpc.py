@@ -52,14 +52,13 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         # print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
         return ret
         
-        #return Qvariant
     def getData(self, i, row):
-        # print "~~ getData:"+str(i)+" | "+str(row)
         if row not in self.cache:
-            ret = self.c.call.getDataAtRow(row)
-            self.cache[row] = ret
-        else:
-            ret = self.cache[row] 
+            retrange = self.c.call.getDataAtRange(row,20)
+            for n, ret in enumerate(retrange):
+                self.cache[row+n] = ret
+                
+        ret = self.cache[row] 
         
         return ret[i]
         
@@ -88,7 +87,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             return False
     
     def fetch(self,i):
-        print "$$ -> LlampexResult.fetch(%d)" % (i)
+        # print "$$ -> LlampexResult.fetch(%d)" % (i)
         if not self.isActive():
             return False
         if i < 0:

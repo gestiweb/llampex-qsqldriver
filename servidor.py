@@ -258,6 +258,18 @@ class CursorSQL(BaseHandler):
         
         return self.lastResult
 
+    @withrlock    
+    def getDataAtRange(self, row, size = 15):
+        "return data at row range"
+        self.scroll(row,'absolute')
+        rows = []
+        while (len(rows) < size): 
+            self.fetchOne()
+            rows.append(self.lastResult)
+            if self.lastResult is None: break
+            
+        return rows
+
         
     @withrlock    
     def scroll(self, value, mode = 'relative'):
