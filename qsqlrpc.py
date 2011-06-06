@@ -40,15 +40,29 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     def __init__(self, driver):
         QtSql.QSqlResult.__init__(self,driver)
         self.sqldriver = driver
-        
+        self.c = self.sqldriver.c
+        self.setup()
+    
+    def setup(self):
+        self.cache = {}
         self.currentSize = 0
     
     def data(self,i):
-        ret = self.sqldriver.getData(i,self.at())
-        print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
+        ret = self.getData(i,self.at())
+        # print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
         return ret
         
         #return Qvariant
+    def getData(self, i, row):
+        # print "~~ getData:"+str(i)+" | "+str(row)
+        if row not in self.cache:
+            ret = self.c.call.getDataAtRow(row)
+            self.cache[row] = ret
+        else:
+            ret = self.cache[row] 
+        
+        return ret[i]
+        
     
     def isNull(self,index):
         print "$$ -> LlampexResult.isNull(%d)" % (index)
@@ -56,6 +70,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     
     def reset(self,query):
         print "$$ -> LlampexResult.reset(%s)" % (repr(query))
+        self.setup()
         if self.sqldriver.executeQuery(query):
             self.setActive(True)
             if str(query).strip().lower().startswith("select"):
@@ -193,12 +208,6 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
     def fetchOne(self):
         print "~~ fetch one"
         self.c.call.fetchOne()
-        
-    def getData(self, i, row):
-        print "~~ getData:"+str(i)+" | "+str(row)
-        self.c.call.scroll(row,'absolute')
-        self.fetchOne()
-        return self.c.call.getData(i)
         
     def beginTransaction(self):
         print "~~ beginTransaction"

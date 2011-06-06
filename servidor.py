@@ -44,7 +44,7 @@ def withrlock(function):
 class LlampexProject(BaseHandler):
     
     def _setup(self):
-        self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=king.calidae.net port=5432")
+        self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=localhost port=5432")
     
     def getCursor(self):
         return CursorSQL(self)
@@ -64,6 +64,7 @@ class CursorSQL(BaseHandler):
         self.curname = "rpccursor_%04x" % cursornumber
         self.rlock = threading.RLock()
         self.lastResult = ()
+        self.lastResultRow = -99
         
     def openDB(self):
         try:
@@ -239,6 +240,7 @@ class CursorSQL(BaseHandler):
     def fetchOne(self):
         "Fetches one row"
         #self.lastResult = tuplenormalization(self.cur.fetchone())
+        self.lastResultRow = self.cur.rownumber
         self.lastResult = self.cur.fetchone()
         
     @withrlock    
@@ -246,6 +248,15 @@ class CursorSQL(BaseHandler):
         "return data"
         print self.lastResult
         return self.lastResult[i]
+
+    @withrlock    
+    def getDataAtRow(self, row):
+        "return data at row"
+        if self.lastResultRow != row:
+            self.scroll(row,'absolute')
+            self.fetchOne()
+        
+        return self.lastResult
 
         
     @withrlock    
@@ -291,6 +302,6 @@ class CursorSQL(BaseHandler):
 
 s = createserver(handler_factory=LlampexProject, host="0.0.0.0") # creamos el servidor
 
-#s.debug_socket(True) # imprimir las tramas enviadas y recibidas.
+s.debug_socket(True) # imprimir las tramas enviadas y recibidas.
 
 s.serve() # empieza el bucle infinito de servicio.
