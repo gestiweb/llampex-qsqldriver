@@ -78,7 +78,8 @@ if __name__ == '__main__':
 
     editor = TableEditor('users',db)
     editor.show()
-    sys.exit(editor.exec_())
+    editor.exec_()
     
+    del editor    
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")

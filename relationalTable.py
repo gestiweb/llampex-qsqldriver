@@ -51,7 +51,7 @@ if __name__ == '__main__':
     initializeModel(model)
     view = createView("Relational Table Model", model)
     view.show()
-    sys.exit(app.exec_())
+    app.exec_()
     
     del view
     del db
