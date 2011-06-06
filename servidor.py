@@ -44,10 +44,14 @@ def withrlock(function):
 class LlampexProject(BaseHandler):
     
     def _setup(self):
+        # TODO: la configuración de conexión no puede estar grabada en el código fuente.
         self.conn = psycopg2.connect("dbname=llampex user=llampexuser password=llampexpasswd host=localhost port=5432")
     
     def getCursor(self):
+        # TODO: Sintaxis alternativa para crear directamente un cursor con una query dada.
         return CursorSQL(self)
+    
+    
         
 class CursorSQL(BaseHandler):
         
@@ -59,14 +63,16 @@ class CursorSQL(BaseHandler):
     def __init__(self, rpc):
         BaseHandler.__init__(self,rpc)
         self.conn = rpc.conn
+        # TODO: agregar un RLock general para evitar que esto se ejecute paralelamente.
         cursornumber = self.globaldata['cursornumber']
-        self.globaldata['cursornumber'] += 1
+        self.globaldata['cursornumber'] += 1 
         self.curname = "rpccursor_%04x" % cursornumber
+        # <<<< TODO
         self.rlock = threading.RLock()
         self.lastResult = ()
         self.lastResultRow = -99
         
-    def openDB(self):
+    def openDB(self): # TODO: función innecesaria. La declaración del cursor implica tener un cursor de base de datos.
         try:
             self.cur = self.conn.cursor()
             print "opened"
@@ -75,8 +81,8 @@ class CursorSQL(BaseHandler):
             print "error opening"
             return False
 
-    def executaConsulta(self, sql):
-        
+    def executaConsulta(self, sql): # TODO: métodos deben ser en inglés
+        # TODO: revisar si esta función aún se usa y si no es util, borrarla.
         # ens connectem a la bbdd, preparem el cursor i fem la consulta,
         self.cur.execute(sql)
         
@@ -90,6 +96,7 @@ class CursorSQL(BaseHandler):
         
     @withrlock    
     def description(self):
+        # TODO: Función innecesaria, se borra.
         "Returns field properties"
         return self.cur.description
 
@@ -98,7 +105,7 @@ class CursorSQL(BaseHandler):
         "Returns field list"
         descrip = self.cur.description
         if descrip is None: return None
-        print descrip
+        print descrip # TODO: prints solo si hay que depurar algo
         tmpCur = self.conn.cursor()
         fields = []
         #fields = [(l[0],l[1]) for l in descrip]
@@ -123,11 +130,12 @@ class CursorSQL(BaseHandler):
     def closeDB(self):
         "Closes the cursor."
         self.cur.close()
-        self.conn.close()
+        self.conn.close() # TODO: Y cierras también la base de datos... y cuando llegue el siguiente cursor? 
         self.cur = None
         
     @withrlock    
     def execute(self, sql, params = None):
+        # TODO: ver si es posible que desde Qt nos envien la consulta con placeholders (usando params) en lugar de construir ellos la SQL.
         "Executes the specified SQL with given parameters."
         try:
             if params:
@@ -140,6 +148,7 @@ class CursorSQL(BaseHandler):
         
     @withrlock    
     def selecttable(self, tablename, fieldlist = ["*"], wherelist = [], orderby = [], limit = 5000, offset = 0):
+        # TODO: Función que no se usa, se debe borrar. 
         """
             Selects the specified table with the specified columns and filtered with the specified values
             returns the field list and some other info.
@@ -190,6 +199,7 @@ class CursorSQL(BaseHandler):
     
     @withrlock    
     def getmoredata(self, amount = 5000):
+        # TODO: funcion obsoleta, borrar.
         
         self._sqlparams["limit"] = amount
         sql = """ 
@@ -245,6 +255,7 @@ class CursorSQL(BaseHandler):
         
     @withrlock    
     def getData(self, i):
+        # TODO: Borrar esta función. Es incorrecto enviar una única celda.
         "return data"
         print self.lastResult
         return self.lastResult[i]
