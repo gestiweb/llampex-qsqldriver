@@ -53,6 +53,7 @@ if __name__ == '__main__':
     view.show()
     app.exec_()
     
+    del model
     del view
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")

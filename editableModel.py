@@ -7,6 +7,7 @@ import sys
 from PyQt4 import QtGui, QtCore, uic, QtSql
 import qsqlrpc
 
+
 class EditableSqlModel(QtSql.QSqlQueryModel):
     def __init__(self, db):
         QtSql.QSqlQueryModel.__init__(self)
@@ -99,6 +100,8 @@ if __name__ == '__main__':
     print ">> OK"
     
     app.exec_()
+    
+    del editableModel
     del view
 
     #db.close()

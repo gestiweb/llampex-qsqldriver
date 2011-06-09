@@ -5,7 +5,12 @@ import os.path
 
 import sys
 from PyQt4 import QtGui, QtCore, uic, QtSql
+
+from bjsonrpc import connect
+
 import qsqlrpc
+
+
 
     
 if __name__ == '__main__':
@@ -15,7 +20,9 @@ if __name__ == '__main__':
     global llampex_driver, db
     print
     print "*** Testing Llampex Qt Database Driver..."
-    llampex_driver = qsqlrpc.QSqlLlampexDriver()
+    
+    conn = connect()
+    llampex_driver = qsqlrpc.QSqlLlampexDriver(conn)
     print llampex_driver
     db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
     print "Database:",db

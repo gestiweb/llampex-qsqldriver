@@ -34,15 +34,19 @@ pg2qttype["time"] = QtCore.QVariant.Time
 pg2qttype["timetz"] = QtCore.QVariant.Time
 pg2qttype["uuid"] = QtCore.QVariant.ULongLong
 
+DEBUG_MODE = False
 
 class QSqlLlampexResult(QtSql.QSqlResult):
-    # TODO: Documentar la clase y sus métodos
+    """
+        Result Class for SqlLlampexDriver.
+        Is the equivalent of a cursor, and is connected with the server.
+    """
     
     def __init__(self, driver):
         QtSql.QSqlResult.__init__(self,driver)
         self.sqldriver = driver
-        # TODO: Crear el cursor remoto y asociarlo.
-        self.c = self.sqldriver.c # TODO: No debería usar self.c.call.* , debería crear un cursor y asociarlo a self.cur 
+
+        self.cur = self.sqldriver.conn.call.getCursor()
         self.setup()
     
     def setup(self):
@@ -56,7 +60,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         
     def getData(self, i, row):
         if row not in self.cache:
-            retrange = self.c.call.getDataAtRange(row,20)
+            retrange = self.cur.call.getDataAtRange(row,20)
             for n, ret in enumerate(retrange):
                 self.cache[row+n] = ret
                 
@@ -65,26 +69,31 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         
     
     def isNull(self,index):
-        # TODO: Condicionar los debugs a una variable debug global.
-        print "$$ -> LlampexResult.isNull(%d)" % (index) 
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.isNull(%d)" % (index) 
         return False
     
     def reset(self,query):
-        print "$$ -> LlampexResult.reset(%s)" % (repr(query))
+        """This method is called when do a new query. Check if is a
+        SELECT or not, and consequently prepares the result class"""
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.reset(%s)" % (repr(query))
         self.setup()
-        if self.sqldriver.executeQuery(query): # TODO: Documentar este algoritmo.
+        if self.cur.call.execute(unicode(query)):
+            self.fields = self.cur.call.fields()
             self.setActive(True)
             if str(query).strip().lower().startswith("select"):
                 self.setSelect(True)
-                self.currentSize = self.sqldriver.getCurrentSize()
+                self.currentSize = self.cur.call.rowcount()
             else:
                 self.setSelect(False)
                 self.currentSize = -1;
-                self.sqldriver.commitTransaction()
+                self.cur.call.commit()
             return True
         else:
             #TODO no imprime nada :S
-            print "$$ Error: Unable to create query"
+            if DEBUG_MODE:
+                print "$$ Error: Unable to create query"
             self.setLastError(QtSql.QSqlError("QSqlLlampexDriver: QSqlLlampexResult", "Unable to create query", QtSql.QSqlError.StatementError))
             return False
     
@@ -108,47 +117,50 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         return self.fetch(0)
     
     def fetchLast(self):
-        print "$$ -> LlampexResult.fetchLast()"
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.fetchLast()"
         return self.fetch(self.currentSize -1)
     
     def size(self):
-        print "$$ -> LlampexResult.size() -> %d" % (self.currentSize)
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.size() -> %d" % (self.currentSize)
         return self.currentSize
     
     def numRowsAffected(self):
-        print "$$ -> LlampexResult.numRowsAffected()"
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.numRowsAffected()"
         return 0
     
     def record(self):
-        print "$$ -> LlampexResult.record() (crear QSqlRecord())"
+        """This method return in a QSqlRecord the fields (rows) of the last query"""
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.record() (crear QSqlRecord())"
         info = QtSql.QSqlRecord()
         if not self.isActive() or not self.isSelect():
             return info
         
         global pg2qttype
-        for field in self.sqldriver.fields:
+        for field in self.fields:
             f = QtSql.QSqlField(field[0],pg2qttype[field[1]])
             info.append(f)
-            print "$$ -> field:", field
+            if DEBUG_MODE:
+                print "$$ -> field:", field
         
-        print "$$ <<< LlampexResult.record()"
+        if DEBUG_MODE:
+            print "$$ <<< LlampexResult.record()"
         return info
     
 
-class LlampexDriverPrivate(object): # TODO: Para que sirve esto actualmente? no sobra?
-    def __init__(self, conn = None):
-        print "hello world from private"
-
 class QSqlLlampexDriver(QtSql.QSqlDriver):
-    # TODO: limpiar comentarios de codigo antiguo que no se va a usar..
-    """def __new__(cls, *args):
-        self = super(QSqlLlampexDriver, cls).__new__(cls, *args)
-        print "NEW:", repr(self)
-        return self
-    """    
+    """QSqlLlampexDriver is a special QSqlDriver that acts as an intermediary
+    with the help of bjsonrpc between QSql (in client) and the Llampex Server"""
+    
     def __init__(self, *args):
+        """Driver constructor. Can recieve an existing connection"""
+        
         QtSql.QSqlDriver.__init__(self)
-        print "init", args
+        if DEBUG_MODE:
+            print "init", args
         # emulate Cpp-style function overload.
         # a) None
         # b) (QObject*) parent 
@@ -164,98 +176,92 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
                 assert(conn is None)
                 conn = arg
         
-        self.p = LlampexDriverPrivate(conn = conn) 
-        self.c = connect() # TODO: Permitir usar una conexión ya existente.
-        self.c = self.c.call.getCursor() # TODO: esto pertenece al Result, no al driver. Cada result tiene que tener un cursor.
-        #setattr(self,"open",self.open_)
+        if conn is None: 
+            self.conn = connect()
+        else:
+            self.conn = conn
         
     def hasFeature(self,f):
-        # TODO: No usar numeros, usar nombres de variables para que se entienda.
-        # TODO: incluir todas las variables posibles aquí y marcarlas a false. Si aparece una desconocida, raise ValueError.
-        print "~~ hasFeature: "+str(f)
-        if f == 0: return True
-        if f == 1: return True
-        if f == 4: return True
+        """Check if the driver has a specific QSqlDriver feature"""
+        if DEBUG_MODE:
+            print "~~ hasFeature: "+str(f)
+        if f == QtSql.QSqlDriver.Transactions: return True
+        elif f == QtSql.QSqlDriver.QuerySize: return True
+        elif f == QtSql.QSqlDriver.BLOB: return False #?
+        elif f == QtSql.QSqlDriver.Unicode: return True #?
+        elif f == QtSql.QSqlDriver.PreparedQueries: return True
+        elif f == QtSql.QSqlDriver.NamedPlaceholders: return False #?
+        elif f == QtSql.QSqlDriver.PositionalPlaceholders: return False #?
+        elif f == QtSql.QSqlDriver.LastInsertId: return False #?
+        elif f == QtSql.QSqlDriver.BatchOperations: return False
+        elif f == QtSql.QSqlDriver.SimpleLocking: return False
+        elif f == QtSql.QSqlDriver.LowPrecisionNumbers: return False
+        elif f == QtSql.QSqlDriver.EventNotifications: return False
+        elif f == QtSql.QSqlDriver.FinishQuery: return False
+        elif f == QtSql.QSqlDriver.MultipleResultSets: return False
+        else:
+            raise ValueError
         return False
     
     def open(self,db,user,passwd,host,port,options):
-        print "~~ open database"
-        # TODO: La conexión la abrimos ya en la declaración. Tal vez debería venir aquí. Como se tratan los valores de db, user, passwd.. ? 
+        if DEBUG_MODE:
+            print "~~ open database"
+        # TODO: La conexión la abrimos ya en la declaración. Tal vez debería venir aquí. Como se tratan los valores de db, user, passwd.. ?
+        # Se tienen que tratar? Se supone que la connexion ya estara abierta, así que el driver no necesita saber estos datos. 
         
-        ok = self.c.call.openDB() # TODO: y esto qué es y para qué es? probablemente innecesario.
-        self.setOpen(ok)
-        self.setOpenError(not ok)
-        return ok
+        self.setOpen(True)
+        self.setOpenError(False)
+        
+        return True
         
     def close(self):
-        print "~~ close"
-        self.c.call.closeDB() # TODO: revisar el sentido de esto
-        # TODO: faltará cerrar el cursor aquí
+        if DEBUG_MODE:
+            print "~~ close"
         self.setOpen(False)
         self.setOpenError(False)
     
     def createResult(self):
-        print "~~ createResult"
+        """Returns a new QSqlLlampexResult (a special result to improve
+        the Driver, see its Documentation"""
+        
+        if DEBUG_MODE:
+            print "~~ createResult"
         return QSqlLlampexResult(self)
         
-    def executeQuery(self,query):
-        print "~~ execute query:", query
-        # TODO: borrar esta función. una query sólo puede ser ejecutada con un cursor, desde un result.
-        ret = self.c.call.execute(unicode(query))
-        self.fields = self.c.call.fields()
-        return ret
-        
-    def getCurrentSize(self):
-        # TODO: borrar esta función. esta función sólo puede ser ejecutada con un cursor, desde un result.
-        size = self.c.call.rowcount()
-        print "~~ current size -> %d " % size
-        return self.c.call.rowcount()
-        
-    def getCursorPosition(self):
-        # TODO: borrar esta función. esta función sólo puede ser ejecutada con un cursor, desde un result.
-        print "~~ getPosition"
-        return self.c.call.rownumber()
-        
-    def fetchOne(self):
-        # TODO: borrar esta función. esta función sólo puede ser ejecutada con un cursor, desde un result.
-        print "~~ fetch one"
-        self.c.call.fetchOne()
-        
     def beginTransaction(self):
-        print "~~ beginTransaction"
+        if DEBUG_MODE:
+            print "~~ beginTransaction"
         if self.isOpen():
             return True
         else:
-            print "Error: Database Not Open"
+            if DEBUG_MODE:
+                print "Error: Database Not Open"
             return False    
         
     def commitTransaction(self):
-        print "~~ commitTransaction"
+        if DEBUG_MODE:
+            print "~~ commitTransaction"
         try:
-            self.c.call.commit()
+            self.conn.call.commit()
             return True
         except:
             return False
     
     def record(self,tableName):
-        # TODO: reestructurar esta función. Hace una query sin usar un result.
-        print "~~ record (driver) of "+tableName
+        """Method that get a tableName and return it fields(rows)"""
         
-        self.executeQuery("SELECT * FROM "+tableName)
-        
-        info = QtSql.QSqlRecord()
-        
-        global pg2qttype
-        for field in self.fields:
-            f = QtSql.QSqlField(field[0],pg2qttype[field[1]])
-            info.append(f)
-            print "$$ -> field:", field
-        
-        print "$$ <<< LlampexResult.record()"
-        return info
+        if DEBUG_MODE:
+            print "~~ record (driver) of "+tableName
+            
+        tmpCursor = QSqlLlampexResult(self)
+        tmpCursor.reset("SELECT * FROM "+tableName)
+        return tmpCursor.record()
     
     def formatValue(self,field,trimStrings):
-        print "~~ formatVaule"
+        """Method for format variables to automatically create SQL Queries"""
+        
+        if DEBUG_MODE:
+            print "~~ formatVaule"
         
         r = super(QSqlLlampexDriver,self).formatValue(field,trimStrings)
         
