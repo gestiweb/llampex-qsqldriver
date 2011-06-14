@@ -18,11 +18,11 @@ class TableEditor(QtGui.QDialog):
             print "Selection Fails"
             sys.exit(1)
 
-        self.model.setHeaderData(0, QtCore.Qt.Horizontal, "ID")
-        self.model.setHeaderData(1, QtCore.Qt.Horizontal, "Username")
-        self.model.setHeaderData(2, QtCore.Qt.Horizontal, "Password")
-        self.model.setHeaderData(3, QtCore.Qt.Horizontal, "Active")
-        self.model.setHeaderData(4, QtCore.Qt.Horizontal, "Admin")
+        #self.model.setHeaderData(0, QtCore.Qt.Horizontal, "ID")
+        #self.model.setHeaderData(1, QtCore.Qt.Horizontal, "Username")
+        #self.model.setHeaderData(2, QtCore.Qt.Horizontal, "Password")
+        #self.model.setHeaderData(3, QtCore.Qt.Horizontal, "Active")
+        #self.model.setHeaderData(4, QtCore.Qt.Horizontal, "Admin")
 
         view = QtGui.QTableView()
         view.setModel(self.model)
@@ -70,13 +70,19 @@ if __name__ == '__main__':
     llampex_driver = qsqlrpc.QSqlLlampexDriver()
     print llampex_driver
     db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
+    db.setDatabaseName("laperla")
+    db.setUserName("angel")
+    db.setPassword("calidae")
+    db.setHostName("127.0.0.1")
+    db.setPort(10123)
+    
     print ">> Database:",db
     
     if not db.open():
         print "unable to open database"
         sys.exit(1)
 
-    editor = TableEditor('users',db)
+    editor = TableEditor('clientes',db)
     editor.show()
     editor.exec_()
     

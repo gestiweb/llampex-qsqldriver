@@ -7,8 +7,8 @@ import threading
 #  Psycopg is imported:
 import psycopg2
 import psycopg2.extensions
-#psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
-#psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 from bjsonrpc.exceptions import ServerError
 from bjsonrpc.handlers import BaseHandler
@@ -18,15 +18,16 @@ def tuplenormalization(rows):
     retrows = []
     for row in rows:
         retrow = []
-        for field in row:
-            if field is None:
-                retfield = None
-            elif type(field) is bool:
-                retfield = field
-            else:
-                retfield = unicode(field)
-            retrow.append(retfield)
-        retrows.append(retrow)
+        if not row is None:
+            for field in row:
+                if field is None:
+                    retfield = None
+                elif type(field) is bool:
+                    retfield = field
+                else:
+                    retfield = unicode(field)
+                retrow.append(retfield)
+            retrows.append(retrow)
     return retrows
     
 
@@ -44,20 +45,27 @@ def withrlock(function):
 class CursorSQL(BaseHandler):
         
     globaldata = { 'cursornumber' : 1 }
-    def __init__(self, rpc):
+    setupLock = threading.Lock()
+    
+    def __init__(self, rpc):   
         BaseHandler.__init__(self,rpc)
         self.conn = rpc.conn
         self.cur = self.conn.cursor()
              
     def _setup(self):
-        # TODO: agregar un RLock general para evitar que esto se ejecute paralelamente.
+        self.setupLock.acquire()
+        
         cursornumber = self.globaldata['cursornumber']
         self.globaldata['cursornumber'] += 1 
         self.curname = "rpccursor_%04x" % cursornumber
-        # <<<< TODO
+        
+        self.setupLock.release()
+        
         self.rlock = threading.RLock()
         self.lastResult = ()
         self.lastResultRow = -99
+        
+        
 
     @withrlock    
     def fields(self):
@@ -127,19 +135,21 @@ class CursorSQL(BaseHandler):
             self.scroll(row,'absolute')
             self.fetchOne()
         
-        return self.lastResult
+        return tuplenormalization(self.lastResult)
 
     @withrlock    
     def getDataAtRange(self, row, size = 15):
         "return data at row range"
         self.scroll(row,'absolute')
-        rows = []
-        while (len(rows) < size): 
-            self.fetchOne()
-            rows.append(self.lastResult)
-            if self.lastResult is None: break
-            
-        return rows
+        #rows = []
+        #while (len(rows) < size): 
+        #    self.fetchOne()
+        #    rows.append(self.lastResult)
+        #    if self.lastResult is None: break
+        #    
+        #return tuplenormalization(rows)
+        
+        return tuplenormalization(self.cur.fetchmany(size))
 
         
     @withrlock    
@@ -181,3 +191,4 @@ class CursorSQL(BaseHandler):
     def copy_to(self,*args):
         "Dumps a data set from table to a file"
         raise ServerError, "NotImplementedError"
+    

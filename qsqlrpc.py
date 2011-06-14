@@ -99,7 +99,8 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     
     def fetch(self,i):
         # TODO: Los cursores se pueden posicionar desde BOF hasta EOF ambos inclusive. Probablemente fetch deba reflejar esto.
-        # print "$$ -> LlampexResult.fetch(%d)" % (i)
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.fetch(%d)" % (i)
         if not self.isActive():
             return False
         if i < 0:
@@ -113,7 +114,8 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         return True
     
     def fetchFirst(self):
-        print "$$ -> LlampexResult.fetchFirst()"
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.fetchFirst()"
         return self.fetch(0)
     
     def fetchLast(self):
@@ -176,10 +178,7 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
                 assert(conn is None)
                 conn = arg
         
-        if conn is None: 
-            self.conn = connect()
-        else:
-            self.conn = conn
+        self.conn = conn
         
     def hasFeature(self,f):
         """Check if the driver has a specific QSqlDriver feature"""
@@ -189,7 +188,7 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
         elif f == QtSql.QSqlDriver.QuerySize: return True
         elif f == QtSql.QSqlDriver.BLOB: return False #?
         elif f == QtSql.QSqlDriver.Unicode: return True #?
-        elif f == QtSql.QSqlDriver.PreparedQueries: return True
+        elif f == QtSql.QSqlDriver.PreparedQueries: return False
         elif f == QtSql.QSqlDriver.NamedPlaceholders: return False #?
         elif f == QtSql.QSqlDriver.PositionalPlaceholders: return False #?
         elif f == QtSql.QSqlDriver.LastInsertId: return False #?
@@ -206,13 +205,31 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
     def open(self,db,user,passwd,host,port,options):
         if DEBUG_MODE:
             print "~~ open database"
-        # TODO: La conexión la abrimos ya en la declaración. Tal vez debería venir aquí. Como se tratan los valores de db, user, passwd.. ?
-        # Se tienen que tratar? Se supone que la connexion ya estara abierta, así que el driver no necesita saber estos datos. 
+
+        ok = True
         
-        self.setOpen(True)
-        self.setOpenError(False)
+        if self.conn is None:
+            if not host is None and not port is None:
+                self.conn = connect(host,port)
+            else:
+                if DEBUG_MODE:
+                    print "~~ Error opening: You must indicate host and port"
+                ok = False
+                
+        if not db is None and not user is None and not passwd is None:
+            if not self.conn.call.login(unicode(user),unicode(passwd),unicode(db)):
+                if DEBUG_MODE:
+                    print "~~ Error connecting: User, password or project are incorrectly"
+                ok = False                
+        else:
+            if DEBUG_MODE:
+                print "~~ Error opening: You must indicate db, user and password"
+            ok = False
         
-        return True
+        self.setOpen(ok)
+        self.setOpenError(not ok)
+        
+        return ok
         
     def close(self):
         if DEBUG_MODE:
