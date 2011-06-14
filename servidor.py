@@ -14,7 +14,7 @@ from bjsonrpc.exceptions import ServerError
 from bjsonrpc.handlers import BaseHandler
 from bjsonrpc import createserver
 
-import serverCursor
+import servercursor
 
 class LlampexProject(BaseHandler):
     
@@ -37,7 +37,7 @@ class LlampexProject(BaseHandler):
         return True
     
     def getCursor(self):
-            return serverCursor.CursorSQL(self)
+            return servercursor.CursorSQL(self)
             
 
 

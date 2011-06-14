@@ -50,3 +50,4 @@ if __name__ == '__main__':
     #db.close()
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
+    

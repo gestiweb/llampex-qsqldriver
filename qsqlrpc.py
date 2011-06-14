@@ -292,4 +292,3 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
         
         return r
                 
-        

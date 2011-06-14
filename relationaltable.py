@@ -57,3 +57,4 @@ if __name__ == '__main__':
     del view
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
+    

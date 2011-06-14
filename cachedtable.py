@@ -89,3 +89,4 @@ if __name__ == '__main__':
     del editor    
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
+    
