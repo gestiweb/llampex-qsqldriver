@@ -6,6 +6,7 @@ import os.path
 import sys
 from PyQt4 import QtGui, QtCore, uic, QtSql
 import qsqlrpc
+import clientoptions
 
 class TableEditor(QtGui.QDialog):
     def __init__(self, tableName, db, parent=None):
@@ -64,25 +65,29 @@ if __name__ == '__main__':
     import sys
     app = QtGui.QApplication(sys.argv)
     
-    global llampex_driver, db
-    print
-    print "*** Testing Llampex Qt Database Driver..."
-    llampex_driver = qsqlrpc.QSqlLlampexDriver()
-    print llampex_driver
-    db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
-    db.setDatabaseName("laperla")
-    db.setUserName("angel")
-    db.setPassword("calidae")
-    db.setHostName("127.0.0.1")
-    db.setPort(10123)
+    #global llampex_driver, db
+    #print
+    #print "*** Testing Llampex Qt Database Driver..."
+    #llampex_driver = qsqlrpc.QSqlLlampexDriver()
+    #print llampex_driver
+    #db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
+    #db.setDatabaseName("laperla")
+    #db.setUserName("angel")
+    #db.setPassword("calidae")
+    #db.setHostName("127.0.0.1")
+    #db.setPort(10123)
+    #
+    #print ">> Database:",db
+    #
+    #if not db.open():
+    #    print "unable to open database"
+    #    sys.exit(1)
     
-    print ">> Database:",db
-    
-    if not db.open():
-        print "unable to open database"
-        sys.exit(1)
+    clientoptions.prepareParser()
+    qsqlrpc.DEBUG_MODE = clientoptions.getDebug()
+    db = clientoptions.getDB()
 
-    editor = TableEditor('clientes',db)
+    editor = TableEditor(clientoptions.getTable(),db)
     editor.show()
     editor.exec_()
     

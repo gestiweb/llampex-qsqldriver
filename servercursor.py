@@ -65,8 +65,6 @@ class CursorSQL(BaseHandler):
         self.lastResult = ()
         self.lastResultRow = -99
         
-        
-
     @withrlock    
     def fields(self):
         "Returns field list"

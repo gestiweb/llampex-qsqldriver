@@ -8,31 +8,19 @@ from PyQt4 import QtGui, QtCore, uic, QtSql
 import qsqlrpc
 import clientoptions
 
-def initializeModel(model):
-    model.setTable("projectusers")
+def initializeModel(model,table):
+    model.setTable(table)
 
     model.setEditStrategy(QtSql.QSqlTableModel.OnManualSubmit)
-    model.setRelation(1, QtSql.QSqlRelation('projects', 'id', 'code'))
-    model.setRelation(2, QtSql.QSqlRelation('users', 'id', 'username'))
-
-    model.setHeaderData(0, QtCore.Qt.Horizontal, "ID")
-    model.setHeaderData(1, QtCore.Qt.Horizontal, "Project")
-    model.setHeaderData(2, QtCore.Qt.Horizontal, "User")
-
     model.select()
-
 
 def createView(title, model):
     view = QtGui.QTableView()
     view.setModel(model)
-    view.setItemDelegate(QtSql.QSqlRelationalDelegate(view))
     view.setWindowTitle(title)
-    
     return view
-
         
 if __name__ == '__main__':
-    
     import sys
     app = QtGui.QApplication(sys.argv)
     
@@ -42,6 +30,12 @@ if __name__ == '__main__':
     #llampex_driver = qsqlrpc.QSqlLlampexDriver()
     #print llampex_driver
     #db = QtSql.QSqlDatabase.addDatabase(llampex_driver, "myconnection")
+    #
+    #db.setDatabaseName("llampex")
+    #db.setUserName("llampexuser")
+    #db.setPassword("llampexpasswd")
+    #db.setHostName("127.0.0.1")
+    #db.setPort(10123)
     #print ">> Database:",db
     #
     #if not db.open():
@@ -51,20 +45,24 @@ if __name__ == '__main__':
     clientoptions.prepareParser()
     qsqlrpc.DEBUG_MODE = clientoptions.getDebug()
     db = clientoptions.getDB()
-    
-    if not clientoptions.getTable() == "users":
-        print "Sorry, in this example you cannot change the table."
-        print "This example works with the three tables of Llampex DB."
-    else:
-        model = QtSql.QSqlRelationalTableModel(None,db)
-        initializeModel(model)
-        view = createView("Relational Table Model", model)
-        view.show()
-        app.exec_()
         
-        del model
-        del view
+    model = QtSql.QSqlTableModel(None,db)
 
+    initializeModel(model,clientoptions.getTable())
+
+    view1 = createView("Table Model (View 1)", model)
+    view2 = createView("Table Model (View 2)", model)
+
+    view1.show()
+    view2.move(view1.x() + view1.width() + 20, view1.y())
+    view2.show()
+    
+    app.exec_()
+    
+    del model
+    del view1
+    del view2
+
+    #db.close()
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
-    

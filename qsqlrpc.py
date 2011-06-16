@@ -268,7 +268,7 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
         """Method that get a tableName and return it fields(rows)"""
         
         if DEBUG_MODE:
-            print "~~ record (driver) of "+tableName
+            print "~~ -> LlampexDriver.record() of "+tableName
             
         tmpCursor = QSqlLlampexResult(self)
         tmpCursor.reset("SELECT * FROM "+tableName)
