@@ -6,6 +6,7 @@ import threading
 #  Unicode, you can register the related typecasters globally as soon as 
 #  Psycopg is imported:
 import psycopg2
+import psycopg2.extras
 import psycopg2.extensions
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
@@ -51,6 +52,8 @@ class CursorSQL(BaseHandler):
         BaseHandler.__init__(self,rpc)
         self.conn = rpc.conn
         self.cur = self.conn.cursor()
+        #TODO hay que arreglar el curname, sino fallara!
+        self.scur = self.conn.cursor(self.curname, cursor_factory=psycopg2.extras.DictCursor)
              
     def _setup(self):
         self.setupLock.acquire()
@@ -96,7 +99,7 @@ class CursorSQL(BaseHandler):
         self.cur.close()
         self.cur = None
         
-    @withrlock    
+    @withrlock
     def execute(self, sql, params = None):
         # TODO: ver si es posible que desde Qt nos envien la consulta con placeholders (usando params) en lugar de construir ellos la SQL.
         # en principio sí: http://doc.qt.nokia.com/4.7-snapshot/qsqldriver.html#DriverFeature-enum, ya lo miraremos
@@ -108,6 +111,28 @@ class CursorSQL(BaseHandler):
                 self.cur.execute(sql)
             return True
         except:
+            return False
+        
+    @withrlock
+    def executeSelect(self, sql, params = None):
+        # TODO: ver si es posible que desde Qt nos envien la consulta con placeholders (usando params) en lugar de construir ellos la SQL.
+        # en principio sí: http://doc.qt.nokia.com/4.7-snapshot/qsqldriver.html#DriverFeature-enum, ya lo miraremos
+        "Executes the specified SQL with given parameters."
+        try:
+            if params:
+                self.cur.execute(sql,params)
+            else:
+                splitted = sql.lower().split("from")
+                countsql = "SELECT COUNT(*) FROM"+splitted[1]
+                self.cur.execute(countsql)
+                self.querySize = self.cur.fetchone()
+                self.querySize = self.querySize[0]
+                
+                self.cur.execute(sql+" LIMIT 1")
+                self.scur.execute(sql)
+            return True
+        except Exception, e:
+            print e
             return False
 
     @withrlock    
@@ -147,7 +172,7 @@ class CursorSQL(BaseHandler):
         #    
         #return tuplenormalization(rows)
         
-        return tuplenormalization(self.cur.fetchmany(size))
+        return tuplenormalization(self.scur.fetchmany(size))
 
         
     @withrlock    
@@ -155,7 +180,7 @@ class CursorSQL(BaseHandler):
         """Moves the cursor up and down specified by *value* rows. mode can be
         set to 'absoulte'. """
         try:
-            return self.cur.scroll(value, mode)
+            return self.scur.scroll(value, mode)
         except (psycopg2.ProgrammingError, IndexError), e:
             print "scrollError!!!!!!!!!!"
             return None
@@ -163,7 +188,8 @@ class CursorSQL(BaseHandler):
     @withrlock    
     def rowcount(self):
         "Returns the count of rows for the last query executed."
-        return self.cur.rowcount
+        #return self.cur.rowcount
+        return self.querySize
         
     @withrlock    
     def rownumber(self):

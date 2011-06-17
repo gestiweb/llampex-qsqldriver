@@ -79,23 +79,48 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         if DEBUG_MODE:
             print "$$ -> LlampexResult.reset(%s)" % (repr(query))
         self.setup()
-        if self.cur.call.execute(unicode(query)):
-            self.fields = self.cur.call.fields()
-            self.setActive(True)
-            if str(query).strip().lower().startswith("select"):
+        
+        isExecuted = False
+        if str(query).strip().lower().startswith("select"):
+            if self.cur.call.executeSelect(unicode(query)):
                 self.setSelect(True)
                 self.currentSize = self.cur.call.rowcount()
-            else:
+                isExecuted = True
+        else:
+            if self.cur.call.execute(unicode(query)):
                 self.setSelect(False)
                 self.currentSize = -1;
                 self.cur.call.commit()
-            return True
+                isExecuted = True
+        
+        if isExecuted:
+            self.fields = self.cur.call.fields()
+            self.setActive(True)
         else:
             #TODO no imprime nada :S
             if DEBUG_MODE:
                 print "$$ Error: Unable to create query"
             self.setLastError(QtSql.QSqlError("QSqlLlampexDriver: QSqlLlampexResult", "Unable to create query", QtSql.QSqlError.StatementError))
-            return False
+        
+        return isExecuted
+        
+        #if self.cur.call.execute(unicode(query)):
+        #    self.fields = self.cur.call.fields()
+        #    self.setActive(True)
+        #    if str(query).strip().lower().startswith("select"):
+        #        self.setSelect(True)
+        #        self.currentSize = self.cur.call.rowcount()
+        #    else:
+        #        self.setSelect(False)
+        #        self.currentSize = -1;
+        #        self.cur.call.commit()
+        #    return True
+        #else:
+        #    #TODO no imprime nada :S
+        #    if DEBUG_MODE:
+        #        print "$$ Error: Unable to create query"
+        #    self.setLastError(QtSql.QSqlError("QSqlLlampexDriver: QSqlLlampexResult", "Unable to create query", QtSql.QSqlError.StatementError))
+        #    return False
     
     def fetch(self,i):
         # TODO: Los cursores se pueden posicionar desde BOF hasta EOF ambos inclusive. Probablemente fetch deba reflejar esto.
