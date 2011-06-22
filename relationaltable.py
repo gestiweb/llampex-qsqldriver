@@ -65,6 +65,7 @@ if __name__ == '__main__':
         del model
         del view
 
+    clientoptions.db = None
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
     

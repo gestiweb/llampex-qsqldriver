@@ -91,7 +91,8 @@ if __name__ == '__main__':
     editor.show()
     editor.exec_()
     
-    del editor    
+    del editor
+    clientoptions.db = None
     del db
     QtSql.QSqlDatabase.removeDatabase("myconnection")
     

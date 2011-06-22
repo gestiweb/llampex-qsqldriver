@@ -22,7 +22,7 @@ class LlampexProject(BaseHandler):
     
     def _setup(self):
         global conn
-        self.conn = conn
+        self.conn = None
         
     def login(self,username,password,project):
         # to no repeat work, i hard code here the login.

@@ -49,8 +49,8 @@ if __name__ == '__main__':
     
     #db.close()
     del query
-    clientoptions.closeBD()
-    #del db
-    #QtSql.QSqlDatabase.removeDatabase("myconnection")
+    clientoptions.db = None
+    del db
+    QtSql.QSqlDatabase.removeDatabase("myconnection")
     
 

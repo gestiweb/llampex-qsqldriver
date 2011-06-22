@@ -59,8 +59,3 @@ def getTable():
     global parser  
     (options, args) = parser.parse_args()
     return options.table
-
-def closeBD():
-    global llampex_driver, db
-    del db
-    QtSql.QSqlDatabase.removeDatabase("myconnection")
