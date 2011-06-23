@@ -3,7 +3,7 @@
 
 from optparse import OptionParser
 from PyQt4 import QtGui, QtCore, uic, QtSql
-import qsqlrpc
+import qsqlrpcdriver.qtdriver as qsqlrpc
 
 parser = OptionParser()
 llampex_driver = None

@@ -16,7 +16,7 @@ from bjsonrpc.exceptions import ServerError
 from bjsonrpc.handlers import BaseHandler
 from bjsonrpc import createserver
 
-import servercursor
+import qsqlrpcdriver.servercursor as servercursor
 
 class LlampexProject(BaseHandler):
     

@@ -5,7 +5,8 @@ import os.path
 
 import sys
 from PyQt4 import QtGui, QtCore, uic, QtSql
-import qsqlrpc
+import qsqlrpcdriver.qtdriver as qsqlrpc
+
 import clientoptions
 
 def initializeModel(model,table):
