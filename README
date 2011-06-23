@@ -1,0 +1,6 @@
+
+qsqlrpcdriver - Driver for QtSQL, using server-client method with bjsonrpc
+
+Authors: 
+	- Àngel Fernández Ibáñez (Calidae), angel@calidae.net
+	- David Martínez Martí (Gestiweb), desarrollo@gestiweb.com
