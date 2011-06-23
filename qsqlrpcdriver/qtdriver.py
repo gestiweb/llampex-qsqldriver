@@ -37,7 +37,7 @@ pg2qttype["uuid"] = QtCore.QVariant.ULongLong
 
 DEBUG_MODE = False
 
-CACHE_BLOCK_SIZE = 20
+CACHE_BLOCK_SIZE = 10
 import json
 
 class QSqlLlampexResult(QtSql.QSqlResult):
@@ -49,40 +49,59 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     def __init__(self, driver):
         QtSql.QSqlResult.__init__(self,driver)
         self.sqldriver = driver
-        self.lastRowNumber = None
-        self.lastRowObject = None
         self.cur = self.sqldriver.conn.call.getCursor()
         self.setup()
     
     def setup(self):
         self.cache = {}
+        self.lastRowNumber = None
+        self.lastRowObject = None
+        self.cacheQueue = []
         self.currentSize = 0
     
     def data(self,i):
-        ret = self.getData(i,self.at()) # TODO: Hacer desaparecer el self.at() porque la implementación del driver no lo requiere.
-        # print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
-        return ret
+        # This function never gets called. it is replaced everytime a new row is queried.
+        return None
+    """
+    def data(self,i):
         
+        ret = self.getData(self.at()) # TODO: Hacer desaparecer el self.at() porque la implementación del driver no lo requiere.
+        print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
+        return ret[i]
+    """    
     def cacheBlock(self, k):
         if k in self.cache: return self.cache[k]
         retrange = self.cur.method.getDataAtRange(k*CACHE_BLOCK_SIZE,CACHE_BLOCK_SIZE)
         self.cache[k] = retrange
+        self.cacheQueue.append(k)
+        sz = len(self.cacheQueue)
+        if sz > 300:
+            poplist = self.cacheQueue[:10]
+            self.cacheQueue[:10] = []
+            for p in poplist:
+                del self.cache[p]
+            # print poplist
         return retrange
         
-    def getData(self, i, row):
-        if self.lastRowNumber == row:
-            val = self.lastRowObject[i]
-        else:
+    def getData(self, row):
+        if self.lastRowNumber != row:
             k = int(row/CACHE_BLOCK_SIZE)
             l = row%CACHE_BLOCK_SIZE
             retrange = self.cacheBlock(k)
-            if l >= CACHE_BLOCK_SIZE / 2:
-                self.cacheBlock(k+1) # -> read ahead
+            # -- read ahead --
+            if l >= CACHE_BLOCK_SIZE:
+                self.cacheBlock(k+3)
+            elif l >= CACHE_BLOCK_SIZE / 4:
+                self.cacheBlock(k+2) 
+            elif l >= CACHE_BLOCK_SIZE / 2:
+                self.cacheBlock(k+1) 
+            # -- read ahead --
                 
             self.lastRowObject = retrange.value[l]
             self.lastRowNumber = row
-            val = self.lastRowObject[i]
-        return val
+            self.data = self.lastRowObject.__getitem__
+            
+        return self.lastRowNumber
         
     
     def isNull(self,index):
@@ -144,15 +163,18 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         if DEBUG_MODE:
             print "$$ -> LlampexResult.fetch(%d)" % (i)
         if not self.isActive():
+            self.data = None
             return False
         if i < 0:
+            self.data = None
             return False
         if i >= self.currentSize:
+            self.data = None
             return False
         if self.at() == i:
             return True
-        
         self.setAt(i)
+        self.getData(i)
         return True
     
     def fetchFirst(self):
