@@ -3,6 +3,7 @@
 
 from PyQt4 import QtGui, QtCore, uic, QtSql
 from bjsonrpc import connect
+from bjsonrpc.connection import RemoteObject
 import time
 
 pg2qttype = {}
@@ -279,16 +280,17 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
                 if DEBUG_MODE:
                     print "~~ Error opening: You must indicate host and port"
                 ok = False
-                
-        if not db is None and not user is None and not passwd is None:
-            if not self.conn.call.login(unicode(user),unicode(passwd),unicode(db)):
+        
+        if not isinstance(self.conn, RemoteObject):
+            if db is not None and user is not None and passwd is not None:
+                if not self.conn.call.login(unicode(user),unicode(passwd),unicode(db)):
+                    if DEBUG_MODE:
+                        print "~~ Error connecting: User, password or project are incorrectly"
+                    ok = False                
+            else:
                 if DEBUG_MODE:
-                    print "~~ Error connecting: User, password or project are incorrectly"
-                ok = False                
-        else:
-            if DEBUG_MODE:
-                print "~~ Error opening: You must indicate db, user and password"
-            ok = False
+                    print "~~ Error opening: You must indicate db, user and password"
+                ok = False
         
         self.setOpen(ok)
         self.setOpenError(not ok)
