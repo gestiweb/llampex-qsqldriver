@@ -3,6 +3,7 @@
 
 from PyQt4 import QtGui, QtCore, uic, QtSql
 from bjsonrpc import connect
+import time
 
 pg2qttype = {}
 pg2qttype["bit"] = QtCore.QVariant.BitArray
@@ -36,6 +37,9 @@ pg2qttype["uuid"] = QtCore.QVariant.ULongLong
 
 DEBUG_MODE = False
 
+CACHE_BLOCK_SIZE = 20
+import json
+
 class QSqlLlampexResult(QtSql.QSqlResult):
     """
         Result Class for SqlLlampexDriver.
@@ -45,7 +49,8 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     def __init__(self, driver):
         QtSql.QSqlResult.__init__(self,driver)
         self.sqldriver = driver
-
+        self.lastRowNumber = None
+        self.lastRowObject = None
         self.cur = self.sqldriver.conn.call.getCursor()
         self.setup()
     
@@ -58,14 +63,26 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         # print "$$ -> LlampexResult.data(%d) -> %s" % (i,repr(ret))
         return ret
         
+    def cacheBlock(self, k):
+        if k in self.cache: return self.cache[k]
+        retrange = self.cur.method.getDataAtRange(k*CACHE_BLOCK_SIZE,CACHE_BLOCK_SIZE)
+        self.cache[k] = retrange
+        return retrange
+        
     def getData(self, i, row):
-        if row not in self.cache:
-            retrange = self.cur.call.getDataAtRange(row,20)
-            for n, ret in enumerate(retrange):
-                self.cache[row+n] = ret
+        if self.lastRowNumber == row:
+            val = self.lastRowObject[i]
+        else:
+            k = int(row/CACHE_BLOCK_SIZE)
+            l = row%CACHE_BLOCK_SIZE
+            retrange = self.cacheBlock(k)
+            if l >= CACHE_BLOCK_SIZE / 2:
+                self.cacheBlock(k+1) # -> read ahead
                 
-        ret = self.cache[row] 
-        return ret[i]
+            self.lastRowObject = retrange.value[l]
+            self.lastRowNumber = row
+            val = self.lastRowObject[i]
+        return val
         
     
     def isNull(self,index):
