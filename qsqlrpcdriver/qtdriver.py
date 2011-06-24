@@ -58,7 +58,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         self.lastRowNumber = None
         self.lastRowObject = None
         self.cacheQueue = []
-        self.currentSize = 0
+        self._currentSize = None
     
     def data(self,i):
         # This function never gets called. it is replaced everytime a new row is queried.
@@ -72,6 +72,8 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     """    
     def cacheBlock(self, k):
         if k in self.cache: return self.cache[k]
+        if DEBUG_MODE:
+            print "$$ -> LlampexResult.cacheBlock(%d) " % (k)
         retrange = self.cur.method.getDataAtRange(k*CACHE_BLOCK_SIZE,CACHE_BLOCK_SIZE)
         self.cache[k] = retrange
         self.cacheQueue.append(k)
@@ -92,7 +94,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             # -- read ahead --
             if l >= CACHE_BLOCK_SIZE:
                 self.cacheBlock(k+3)
-            elif l >= CACHE_BLOCK_SIZE / 4:
+            elif l >= (3*CACHE_BLOCK_SIZE) / 4:
                 self.cacheBlock(k+2) 
             elif l >= CACHE_BLOCK_SIZE / 2:
                 self.cacheBlock(k+1) 
@@ -110,6 +112,14 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             print "$$ -> LlampexResult.isNull(%d)" % (index) 
         return False
     
+    @property
+    def currentSize(self):
+        if self._currentSize is None:
+            if DEBUG_MODE:
+                print "$$ -> LlampexResult.currentSize() /*QUERY*/"
+            self._currentSize = self.cur.call.rowcount()
+        return self._currentSize
+        
     def reset(self,query):
         """This method is called when do a new query. Check if is a
         SELECT or not, and consequently prepares the result class"""
@@ -121,12 +131,13 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         if str(query).strip().lower().startswith("select"):
             if self.cur.call.executeSelect(unicode(query)):
                 self.setSelect(True)
-                self.currentSize = self.cur.call.rowcount()
+                self._currentSize = None;
+                # self.cur.call.rowcount()
                 isExecuted = True
         else:
             if self.cur.call.execute(unicode(query)):
                 self.setSelect(False)
-                self.currentSize = -1;
+                self._currentSize = -1;
                 self.cur.call.commit()
                 isExecuted = True
         
@@ -160,9 +171,10 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         #    return False
     
     def fetch(self,i):
+        if self.lastRowNumber == i: return True
+        #if DEBUG_MODE:
+        #    print "$$ -> LlampexResult.fetch(%d)" % (i)
         # TODO: Los cursores se pueden posicionar desde BOF hasta EOF ambos inclusive. Probablemente fetch deba reflejar esto.
-        if DEBUG_MODE:
-            print "$$ -> LlampexResult.fetch(%d)" % (i)
         if not self.isActive():
             self.data = None
             return False
@@ -190,7 +202,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
     
     def size(self):
         if DEBUG_MODE:
-            print "$$ -> LlampexResult.size() -> %d" % (self.currentSize)
+            print "$$ -> **** LlampexResult.size() *** -> %d" % (self.currentSize)
         return self.currentSize
     
     def numRowsAffected(self):

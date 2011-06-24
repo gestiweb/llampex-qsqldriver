@@ -15,6 +15,8 @@ from bjsonrpc.exceptions import ServerError
 from bjsonrpc.handlers import BaseHandler
 from bjsonrpc import createserver
 
+import time
+
 def tuplenormalization(rows):
     retrows = []
     for row in rows:
@@ -112,7 +114,55 @@ class CursorSQL(BaseHandler):
             return True
         except:
             return False
+    
+    @withrlock
+    def getCursorSize(self):
+        minsize = None
+        maxsize = None
+        delta = None
+        bigblock_sz = 100000
+        smallblock_sz = 32
+        rows = 1
+        it = 0
+        while not minsize or not maxsize or minsize < maxsize:
+            t1 = time.time()
+            mode = ""
+            it += 1
+            if it > 100: break
+            if not minsize and not maxsize: rows = bigblock_sz
+            elif minsize and not maxsize: rows += bigblock_sz
+            elif not minsize and maxsize: rows /= 2
+            else: 
+                rows = (maxsize - minsize + 1) / 2 + minsize
+                delta = maxsize - minsize
+            
+            try:
+                r=self.scur.scroll(rows,"absolute")
+                if maxsize and minsize and maxsize - minsize < smallblock_sz:
+                    r = self.scur.fetchall()
+                    delta = len(r)
+                    minsize = rows + delta - 1
+                    maxsize = minsize
+                    
+                    mode = "=="
+                else:
+                    r=self.scur.fetchone()
+                    if not r: raise ValueError
+            except Exception, e:
+                mode = "<-"
+            else:
+                if not mode: mode = "->"
+            t2 = time.time()
+            timedelta = (t2-t1)
+            
+            #print "Testing rows: %s (%s-%s [%s]) %s (%.2fms)" % (repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+            if mode == "<-" and (not maxsize or maxsize > rows - 1): maxsize = rows - 1            
+            if mode == "->" and (not minsize or minsize < rows): minsize = rows           
+        #print "END Testing rows: %s (%s-%s [%s]) %s (%.2fms)" % (repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+        return minsize 
+            
         
+    
     @withrlock
     def executeSelect(self, sql, params = None):
         # TODO: ver si es posible que desde Qt nos envien la consulta con placeholders (usando params) en lugar de construir ellos la SQL.
@@ -122,14 +172,24 @@ class CursorSQL(BaseHandler):
             if params:
                 self.cur.execute(sql,params)
             else:
-                splitted = sql.lower().split("from")
-                countsql = "SELECT COUNT(*) FROM"+splitted[1]
-                self.cur.execute(countsql)
-                self.querySize = self.cur.fetchone()
-                self.querySize = self.querySize[0]
+                #countsql = "SELECT COUNT(*) FROM ( %s ) t" % sql
+                times = []
+                #times.append(time.time())
+                #self.cur.execute(countsql)
+                #self.querySize = self.cur.fetchone()
+                #self.querySize = self.querySize[0]
+                times.append(time.time())
                 
                 self.cur.execute(sql+" LIMIT 1")
+                times.append(time.time())
                 self.scur.execute(sql)
+                times.append(time.time())
+                self.querySize = None
+                for n,t1, t2 in zip(range(len(times)-1),times[:-1],times[1:]):
+                    delta = t2-t1
+                    ms = delta * 1000
+                    if ms > 5:
+                        print "executeSelect time %d: %.2fms" % (n, ms)
             return True
         except Exception, e:
             print e
@@ -188,7 +248,9 @@ class CursorSQL(BaseHandler):
     @withrlock    
     def rowcount(self):
         "Returns the count of rows for the last query executed."
-        #return self.cur.rowcount
+        if self.querySize is None:
+            self.querySize = self.getCursorSize()
+        
         return self.querySize
         
     @withrlock    
