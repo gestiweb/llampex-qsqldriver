@@ -36,6 +36,22 @@ pg2qttype["time"] = QtCore.QVariant.Time
 pg2qttype["timetz"] = QtCore.QVariant.Time
 pg2qttype["uuid"] = QtCore.QVariant.ULongLong
 
+QtDriverFeature={
+    0 : "QSqlDriver::Transactions	0	Whether the driver supports SQL transactions.",
+    1 : "QSqlDriver::QuerySize	1	Whether the database is capable of reporting the size of a query. Note that some databases do not support returning the size (i.e. number of rows returned) of a query, in which case QSqlQuery::size() will return -1.",
+    2 : "QSqlDriver::BLOB	2	Whether the driver supports Binary Large Object fields.",
+    3 : "QSqlDriver::Unicode	3	Whether the driver supports Unicode strings if the database server does.",
+    4 : "QSqlDriver::PreparedQueries	4	Whether the driver supports prepared query execution.",
+    5 : "QSqlDriver::NamedPlaceholders	5	Whether the driver supports the use of named placeholders.",
+    6 : "QSqlDriver::PositionalPlaceholders	6	Whether the driver supports the use of positional placeholders.",
+    7 : "QSqlDriver::LastInsertId	7	Whether the driver supports returning the Id of the last touched row.",
+    8 : "QSqlDriver::BatchOperations	8	Whether the driver supports batched operations, see QSqlQuery::execBatch()",
+    9 : "QSqlDriver::SimpleLocking	9	Whether the driver disallows a write lock on a table while other queries have a read lock on it.",
+    10: "QSqlDriver::LowPrecisionNumbers	10	Whether the driver allows fetching numerical values with low precision.",
+    11: "QSqlDriver::EventNotifications	11	Whether the driver supports database event notifications.",
+    12: "QSqlDriver::FinishQuery	12	Whether the driver can do any low-level resource cleanup when QSqlQuery::finish() is called.",
+    13: "QSqlDriver::MultipleResultSets	13	Whether the driver can access multiple result sets returned from batched statements or stored procedures.",
+}
 DEBUG_MODE = False
 
 CACHE_BLOCK_SIZE = 10
@@ -78,7 +94,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         self.cache[k] = retrange
         self.cacheQueue.append(k)
         sz = len(self.cacheQueue)
-        if sz > 300:
+        if sz > 3000:
             poplist = self.cacheQueue[:10]
             self.cacheQueue[:10] = []
             for p in poplist:
@@ -99,8 +115,10 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             elif l >= CACHE_BLOCK_SIZE / 2:
                 self.cacheBlock(k+1) 
             # -- read ahead --
-                
-            self.lastRowObject = retrange.value[l]
+            try:    
+                self.lastRowObject = retrange.value[l]
+            except IndexError:
+                return None
             self.lastRowNumber = row
             self.data = self.lastRowObject.__getitem__
             
@@ -186,9 +204,10 @@ class QSqlLlampexResult(QtSql.QSqlResult):
             return False
         if self.at() == i:
             return True
-        self.setAt(i)
-        self.getData(i)
-        return True
+        if self.getData(i) is not None:
+            self.setAt(i)
+            return True
+        return False
     
     def fetchFirst(self):
         if DEBUG_MODE:
@@ -201,8 +220,8 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         return self.fetch(self.currentSize -1)
     
     def size(self):
-        if DEBUG_MODE:
-            print "$$ -> **** LlampexResult.size() *** -> %d" % (self.currentSize)
+        #if DEBUG_MODE:
+        #    print "$$ -> **** LlampexResult.size() *** -> %d" % (self.currentSize)
         return self.currentSize
     
     def numRowsAffected(self):
@@ -222,11 +241,11 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         for field in self.fields:
             f = QtSql.QSqlField(field[0],pg2qttype[field[1]])
             info.append(f)
-            if DEBUG_MODE:
-                print "$$ -> field:", field
+            #if DEBUG_MODE:
+            #    print "$$ -> field:", field
         
-        if DEBUG_MODE:
-            print "$$ <<< LlampexResult.record()"
+        #if DEBUG_MODE:
+        #    print "$$ <<< LlampexResult.record()"
         return info
     
 
@@ -256,11 +275,20 @@ class QSqlLlampexDriver(QtSql.QSqlDriver):
                 conn = arg
         
         self.conn = conn
+        self.features = {}
+        
         
     def hasFeature(self,f):
         """Check if the driver has a specific QSqlDriver feature"""
+        if f not in self.features: 
+            self.features[f] = self._hasFeature(f)
+        
+        return self.features[f]
+        
+        
+    def _hasFeature(self,f):
         if DEBUG_MODE:
-            print "~~ hasFeature: "+str(f)
+            print "~~ hasFeature:",QtDriverFeature.get(f,f)
         if f == QtSql.QSqlDriver.Transactions: return True
         elif f == QtSql.QSqlDriver.QuerySize: return True
         elif f == QtSql.QSqlDriver.BLOB: return False #?

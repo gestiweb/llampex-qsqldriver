@@ -112,7 +112,8 @@ class CursorSQL(BaseHandler):
             else:
                 self.cur.execute(sql)
             return True
-        except:
+        except Exception,e:
+            print "SQL Execute error", e
             return False
     
     @withrlock
@@ -137,28 +138,30 @@ class CursorSQL(BaseHandler):
                 delta = maxsize - minsize
             
             try:
-                r=self.scur.scroll(rows,"absolute")
                 if maxsize and minsize and maxsize - minsize < smallblock_sz:
+                    r=self.scur.scroll(rows,"absolute")
                     r = self.scur.fetchall()
                     delta = len(r)
-                    minsize = rows + delta - 1
+                    if not delta: raise ValueError
+                    minsize = minsize + delta - 1
                     maxsize = minsize
                     
                     mode = "=="
                 else:
+                    r=self.scur.scroll(rows,"absolute")
                     r=self.scur.fetchone()
                     if not r: raise ValueError
-            except Exception, e:
+            except ValueError:
                 mode = "<-"
             else:
                 if not mode: mode = "->"
             t2 = time.time()
             timedelta = (t2-t1)
             
-            #print "Testing rows: %s (%s-%s [%s]) %s (%.2fms)" % (repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+            #print "Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
             if mode == "<-" and (not maxsize or maxsize > rows - 1): maxsize = rows - 1            
             if mode == "->" and (not minsize or minsize < rows): minsize = rows           
-        #print "END Testing rows: %s (%s-%s [%s]) %s (%.2fms)" % (repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+        #print "END Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
         return minsize 
             
         
