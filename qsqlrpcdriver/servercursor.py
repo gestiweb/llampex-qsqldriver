@@ -183,9 +183,17 @@ class CursorSQL(BaseHandler):
                 #self.querySize = self.querySize[0]
                 times.append(time.time())
                 
-                self.cur.execute(sql+" LIMIT 1")
+                try:
+                    self.cur.execute(sql+" LIMIT 1")
+                except Exception, e:
+                    self.conn.rollback()
+                    raise
                 times.append(time.time())
-                self.scur.execute(sql)
+                try:
+                    self.scur.execute(sql)
+                except Exception, e:
+                    self.conn.rollback()
+                    raise
                 times.append(time.time())
                 self.querySize = None
                 for n,t1, t2 in zip(range(len(times)-1),times[:-1],times[1:]):
