@@ -139,16 +139,17 @@ class CursorSQL(BaseHandler):
             
             try:
                 if maxsize and minsize and maxsize - minsize < smallblock_sz:
-                    r=self.scur.scroll(rows,"absolute")
+                    r=self.scur.scroll(minsize-1,"absolute")
                     r = self.scur.fetchall()
                     delta = len(r)
                     if not delta: raise ValueError
+                    rows = minsize
                     minsize = minsize + delta - 1
                     maxsize = minsize
                     
                     mode = "=="
                 else:
-                    r=self.scur.scroll(rows,"absolute")
+                    r=self.scur.scroll(rows-1,"absolute")
                     r=self.scur.fetchone()
                     if not r: raise ValueError
             except ValueError:
