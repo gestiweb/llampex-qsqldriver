@@ -146,7 +146,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         self.setup()
         
         isExecuted = False
-        if str(query).strip().lower().startswith("select"):
+        if unicode(query).strip().lower().startswith("select"):
             if self.cur.call.executeSelect(unicode(query)):
                 self.setSelect(True)
                 self._currentSize = None;
@@ -173,7 +173,7 @@ class QSqlLlampexResult(QtSql.QSqlResult):
         #if self.cur.call.execute(unicode(query)):
         #    self.fields = self.cur.call.fields()
         #    self.setActive(True)
-        #    if str(query).strip().lower().startswith("select"):
+        #    if unicode(query).strip().lower().startswith("select"):
         #        self.setSelect(True)
         #        self.currentSize = self.cur.call.rowcount()
         #    else:
