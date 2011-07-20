@@ -118,35 +118,39 @@ class CursorSQL(BaseHandler):
     
     @withrlock
     def getCursorSize(self):
-        minsize = None
+        minsize = 0
         maxsize = None
         delta = None
         bigblock_sz = 100000
         smallblock_sz = 32
         rows = 1
         it = 0
-        while not minsize or not maxsize or minsize < maxsize:
+        while maxsize is None or minsize < maxsize:
             t1 = time.time()
             mode = ""
             it += 1
             if it > 100: break
             if not minsize and not maxsize: rows = bigblock_sz
             elif minsize and not maxsize: rows += bigblock_sz
-            elif not minsize and maxsize: rows /= 2
+            elif not minsize and maxsize: rows /= 3
             else: 
                 rows = (maxsize - minsize + 1) / 2 + minsize
                 delta = maxsize - minsize
             
             try:
-                if maxsize and minsize and maxsize - minsize < smallblock_sz:
+                if maxsize and maxsize - minsize < smallblock_sz:
                     r=self.scur.scroll(minsize-1,"absolute")
                     r = self.scur.fetchall()
                     delta = len(r)
+                    #print "*** Obtained %d lines." % delta
+                        
                     if not delta: raise ValueError
-                    rows = minsize
-                    minsize = minsize + delta - 1
-                    maxsize = minsize
-                    
+                    if minsize == 0:
+                        rows = maxsize = minsize = delta
+                    else:
+                        rows = minsize
+                        minsize = minsize + delta - 1
+                        maxsize = minsize
                     mode = "=="
                 else:
                     r=self.scur.scroll(rows-1,"absolute")
@@ -163,6 +167,7 @@ class CursorSQL(BaseHandler):
             if mode == "<-" and (not maxsize or maxsize > rows - 1): maxsize = rows - 1            
             if mode == "->" and (not minsize or minsize < rows): minsize = rows           
         #print "END Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+        #if minsize is None: return 0
         return minsize 
             
         
