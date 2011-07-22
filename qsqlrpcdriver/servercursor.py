@@ -139,13 +139,14 @@ class CursorSQL(BaseHandler):
             
             try:
                 if maxsize and maxsize - minsize < smallblock_sz:
-                    r=self.scur.scroll(minsize-1,"absolute")
+                    frompos = max(minsize-1, 0)
+                    ret=self.scur.scroll(frompos,"absolute")
                     r = self.scur.fetchall()
                     delta = len(r)
                     #print "*** Obtained %d lines." % delta
                         
-                    if not delta: raise ValueError
                     if minsize == 0:
+                        print "Delta:", delta, "ret:", repr(ret)
                         rows = maxsize = minsize = delta
                     else:
                         rows = minsize
@@ -163,10 +164,10 @@ class CursorSQL(BaseHandler):
             t2 = time.time()
             timedelta = (t2-t1)
             
-            #print "Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+            print "Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
             if mode == "<-" and (not maxsize or maxsize > rows - 1): maxsize = rows - 1            
             if mode == "->" and (not minsize or minsize < rows): minsize = rows           
-        #print "END Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
+        print "END Testing rows %d: %s (%s-%s [%s]) %s (%.2fms)" % (it,repr(rows), repr(minsize), repr(maxsize), repr(delta), mode, timedelta*1000)
         #if minsize is None: return 0
         return minsize 
             
